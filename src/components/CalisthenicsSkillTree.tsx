@@ -39,6 +39,8 @@ export const CalisthenicsSkillTree: React.FC<CalisthenicsSkillTreeProps> = ({
   const [activeBranch, setActiveBranch] = useState<CalisthenicsBranch>('push');
   const [viewMode, setViewMode] = useState<'mindtree' | 'cards'>('mindtree');
   const [activeExercise, setActiveExercise] = useState<CalisthenicsExercise | null>(null);
+  const [lockedExerciseModal, setLockedExerciseModal] = useState<CalisthenicsExercise | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   // Active workout session state
   const [sessionSets, setSessionSets] = useState<{ setNum: number; repsOrSec: number; completed: boolean }[]>([
@@ -117,9 +119,10 @@ export const CalisthenicsSkillTree: React.FC<CalisthenicsSkillTreeProps> = ({
 
   const handleLaunchExercise = (ex: CalisthenicsExercise) => {
     if (!isExerciseUnlocked(ex)) {
-      alert(`🔒 Locked! Train and hit targets on "${CALISTHENICS_EXERCISES.find(p => p.id === ex.prerequisiteId)?.name}" first to unlock this skill node.`);
+      setLockedExerciseModal(ex);
       return;
     }
+    setSessionError(null);
     setActiveExercise(ex);
     const setsCount = ex.recommendedSets || 3;
     const defaultReps = ex.recommendedTarget || 10;
@@ -139,6 +142,7 @@ export const CalisthenicsSkillTree: React.FC<CalisthenicsSkillTreeProps> = ({
     setSessionSets(updated);
 
     if (!wasCompleted) {
+      setSessionError(null);
       const currentReps = updated[index].repsOrSec;
       const currentPr = personalRecords[activeExercise?.id || ''] || 0;
 
@@ -161,7 +165,7 @@ export const CalisthenicsSkillTree: React.FC<CalisthenicsSkillTreeProps> = ({
     if (!activeExercise) return;
     const completedSets = sessionSets.filter((s) => s.completed);
     if (completedSets.length === 0) {
-      alert('Please mark at least one completed set before saving.');
+      setSessionError('Please tap "Done" on at least one completed set before saving!');
       return;
     }
 
@@ -700,10 +704,21 @@ export const CalisthenicsSkillTree: React.FC<CalisthenicsSkillTreeProps> = ({
               </p>
             </div>
 
+            {/* Inline validation error if any */}
+            {sessionError && (
+              <div className="p-3 rounded-2xl bg-rose-950/80 border border-rose-500/80 text-rose-200 text-xs font-bold flex items-center gap-2 animate-bounce">
+                <span>⚠️</span>
+                <span>{sessionError}</span>
+              </div>
+            )}
+
             {/* Modal Bottom Save */}
             <div className="pt-2 flex gap-3">
               <button
-                onClick={() => setActiveExercise(null)}
+                onClick={() => {
+                  setActiveExercise(null);
+                  setSessionError(null);
+                }}
                 className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-300 font-semibold text-xs hover:bg-slate-800"
               >
                 Cancel
@@ -718,6 +733,80 @@ export const CalisthenicsSkillTree: React.FC<CalisthenicsSkillTreeProps> = ({
           </div>
         </div>
       )}
+
+      {/* LOCKED SKILL NODE RPG MODAL */}
+      {lockedExerciseModal && (() => {
+        const parentEx = CALISTHENICS_EXERCISES.find((p) => p.id === lockedExerciseModal.prerequisiteId);
+        const parentPr = personalRecords[parentEx?.id || ''] || 0;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+            <div className="bg-slate-900 border border-amber-600/70 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+              <div className="flex items-start justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-950/80 border border-amber-600/60 flex items-center justify-center text-2xl shadow-inner">
+                    🔒
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                      Tier {lockedExerciseModal.tier} Locked Node
+                    </span>
+                    <h3 className="text-lg font-black text-white">{lockedExerciseModal.name}</h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLockedExerciseModal(null)}
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-300 leading-relaxed">
+                  To prevent tendon strain and unlock this movement in the Mind-Tree, you must first master the prerequisite foundation:
+                </p>
+
+                {parentEx && (
+                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-white text-sm flex items-center gap-1.5">
+                        <span>{parentEx.pictorialIcon}</span> {parentEx.name}
+                      </span>
+                      <span className="text-xs font-bold text-amber-400">
+                        Target: {parentEx.prCriteria} {parentEx.metricType === 'hold_sec' ? 's' : 'reps'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Your current best: <strong className="text-white">{parentPr}</strong> {parentEx.metricType === 'hold_sec' ? 's' : 'reps'}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  onClick={() => setLockedExerciseModal(null)}
+                  className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-300 font-bold text-xs hover:bg-slate-800"
+                >
+                  Close
+                </button>
+                {parentEx && (
+                  <button
+                    onClick={() => {
+                      const p = parentEx;
+                      setLockedExerciseModal(null);
+                      handleLaunchExercise(p);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black text-xs hover:brightness-110 shadow-lg shadow-cyan-950/60"
+                  >
+                    ⚡ Train {parentEx.name}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -1,15 +1,21 @@
 import React from 'react';
 import { DayRecord, UserProfile } from '../types';
 import { calculateDayNutrition, calculateWorkoutStats } from '../utils/nutritionCalculations';
+import { EVALUATE_ACHIEVEMENTS } from '../data/achievements';
+import { AchievementBadge } from './AchievementBadge';
 import { ASSET_IMAGES } from '../assets/images';
-import { Flame, Dumbbell, Shield, Droplets, CheckCircle, Trophy, ArrowRight, Sparkles } from 'lucide-react';
+import { AppLayout } from './ArenaHeader';
+import { Dumbbell, Droplets, CheckCircle, ArrowRight, Sparkles, Pill, Trophy } from 'lucide-react';
 
 interface DailyQuestHubProps {
   record: DayRecord;
   user: UserProfile;
   selectedDate: string;
-  onNavigateLayout: (mode: 'mindtree_arena' | 'bowl_studio' | 'quest_hub') => void;
+  onNavigateLayout: (mode: AppLayout) => void;
   onToggleEssential: (key: keyof DayRecord['essentials']) => void;
+  onUpdateWater?: (waterMl: number) => void;
+  personalRecords?: Record<string, number>;
+  records?: Record<string, DayRecord>;
 }
 
 export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
@@ -18,6 +24,9 @@ export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
   selectedDate,
   onNavigateLayout,
   onToggleEssential,
+  onUpdateWater,
+  personalRecords = {},
+  records = {},
 }) => {
   const nutrition = calculateDayNutrition(record.meals);
   const workoutStats = calculateWorkoutStats(record);
@@ -27,6 +36,15 @@ export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
   const isWorkoutQuestComplete = workoutStats.totalSets >= 6;
   const isHydrationQuestComplete = (record.care?.waterMl || 0) >= (user.goals.waterMl || 2500);
   const isMicroQuestComplete = nutrition.overallMicronutrientScore >= 70;
+
+  const currentWater = record.care?.waterMl || 0;
+  const targetWater = user.goals.waterMl || 2500;
+
+  // Evaluate live medals
+  const allRecordsMap = Object.keys(records).length > 0 ? records : { [selectedDate]: record };
+  const allBadges = EVALUATE_ACHIEVEMENTS(allRecordsMap, personalRecords, user);
+  const earnedBadges = allBadges.filter((b) => b.isUnlocked);
+  const upcomingBadges = allBadges.filter((b) => !b.isUnlocked).slice(0, 2);
 
   const quests = [
     {
@@ -45,7 +63,7 @@ export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
     {
       id: 'workout-quest',
       title: 'Calisthenics Mind-Tree Challenge',
-      desc: 'Complete at least 6 heavy progressive bodyweight sets.',
+      desc: 'Complete at least 6 heavy progressive bodyweight sets in the Arena.',
       current: `${workoutStats.totalSets} sets / 6 target`,
       pct: Math.min(100, Math.round((workoutStats.totalSets / 6) * 100)),
       completed: isWorkoutQuestComplete,
@@ -71,15 +89,15 @@ export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
     {
       id: 'water-quest',
       title: 'Hydration & Joint Lubrication',
-      desc: 'Drink at least 2500ml clean water for tendon recovery.',
-      current: `${record.care?.waterMl || 0}ml / ${user.goals.waterMl || 2500}ml`,
-      pct: Math.min(100, Math.round(((record.care?.waterMl || 0) / (user.goals.waterMl || 2500)) * 100)),
+      desc: `Drink at least ${targetWater}ml clean water for tendon recovery.`,
+      current: `${currentWater}ml / ${targetWater}ml`,
+      pct: Math.min(100, Math.round((currentWater / targetWater) * 100)),
       completed: isHydrationQuestComplete,
       xp: 150,
       icon: '💧',
       color: 'from-blue-500 to-cyan-400',
-      actionLabel: 'Log Water',
-      onAction: () => onNavigateLayout('bowl_studio'),
+      actionLabel: 'Hydrate Now',
+      onAction: () => onUpdateWater && onUpdateWater(currentWater + 250),
     },
   ];
 
@@ -176,6 +194,36 @@ export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
                   />
                 </div>
               </div>
+
+              {/* If hydration quest, offer instant quick-log glass buttons */}
+              {q.id === 'water-quest' && onUpdateWater && (
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateWater(currentWater + 250)}
+                    className="flex-1 py-1.5 px-2 bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800/60 rounded-xl text-[11px] font-bold text-cyan-300 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Droplets className="w-3.5 h-3.5 text-cyan-400" /> +250ml Glass
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateWater(currentWater + 500)}
+                    className="flex-1 py-1.5 px-2 bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800/60 rounded-xl text-[11px] font-bold text-cyan-300 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Droplets className="w-3.5 h-3.5 text-cyan-400" /> +500ml Bottle
+                  </button>
+                  {currentWater > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateWater(Math.max(0, currentWater - 250))}
+                      className="py-1.5 px-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl text-[10px] text-slate-400 transition-colors"
+                      title="Undo 250ml"
+                    >
+                      -250
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-slate-800/80 mt-4 flex items-center justify-between">
@@ -196,6 +244,88 @@ export const DailyQuestHub: React.FC<DailyQuestHubProps> = ({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* FEATURED MEDALS SPOTLIGHT (AchievementBadge preview) */}
+      <div className="bg-slate-900/80 border border-amber-900/40 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" /> Earned Medals & Milestone Badges
+            </h3>
+            <p className="text-xs text-slate-400">
+              {earnedBadges.length} Medals Unlocked · Tap any medal to see criteria or view the full trophy case
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateLayout('medals')}
+            className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-950/60 border border-amber-800/60 px-3 py-1.5 rounded-xl transition-colors"
+          >
+            View All Medals <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Show up to 2 earned badges and 2 upcoming badges */}
+          {[...earnedBadges.slice(0, 2), ...upcomingBadges].map((badge) => (
+            <AchievementBadge
+              key={badge.id}
+              badge={badge}
+              compact={true}
+              onClick={() => onNavigateLayout('medals')}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Daily Plant Athlete Checklist (Vitamins & Care) */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+              <Pill className="w-4 h-4 text-emerald-400" /> Daily Vegan Essentials Checklist
+            </h3>
+            <p className="text-xs text-slate-400">
+              Crucial micronutrient supplements recommended by plant-based sports dietitians.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { key: 'b12' as const, label: 'Vitamin B12', desc: 'Metabolism & Nerve Health', icon: '⚡' },
+            { key: 'vitaminD' as const, label: 'Vitamin D3', desc: 'Immunity & Bone Density', icon: '☀️' },
+            { key: 'omega3Seeds' as const, label: 'Algae Omega-3', desc: 'DHA/EPA Joint Recovery', icon: '🫐' },
+            { key: 'ironWithVitC' as const, label: 'Iron + Vitamin C', desc: 'Optimal Plant Absorption', icon: '💥' },
+          ].map((item) => {
+            const isDone = record.essentials?.[item.key] || false;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => onToggleEssential(item.key)}
+                className={`p-3.5 rounded-2xl border text-left transition-all ${
+                  isDone
+                    ? 'bg-emerald-950/60 border-emerald-500 shadow-md shadow-emerald-950/30'
+                    : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xl">{item.icon}</span>
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                      isDone ? 'bg-emerald-400 text-slate-950' : 'bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {isDone ? '✓' : ''}
+                  </div>
+                </div>
+                <div className="font-extrabold text-xs text-white">{item.label}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{item.desc}</div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Pictorial Food Showcase of Today */}

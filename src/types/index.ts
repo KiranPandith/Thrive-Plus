@@ -121,12 +121,23 @@ export interface UserGoals {
   weeklyWorkoutDays: number;
 }
 
+export type GenderType = 'male' | 'female' | 'non_binary' | 'prefer_not_to_say';
+export type ActivityLevel = 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
+export type FitnessGoal = 'lean_muscle_gain' | 'fat_loss' | 'strength_power' | 'vitality_maintenance';
+
 export interface UserProfile {
   id: string;
   name: string;
   avatar: string;
   themeColor: string;
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  heightCm?: number; // e.g. 178 cm
+  weightKg?: number; // e.g. 74 kg
+  gender?: GenderType;
+  age?: number; // e.g. 26
+  activityLevel?: ActivityLevel;
+  fitnessGoal?: FitnessGoal;
+  autoSyncNutritionWithBiometrics?: boolean;
   goals: UserGoals;
   createdAt: string;
 }
@@ -136,4 +147,24 @@ export interface AppState {
   activeUserId: string;
   records: Record<string, Record<string, DayRecord>>; // [userId][date] -> DayRecord
   personalRecords: Record<string, Record<string, number>>; // [userId][exerciseId] -> best reps/hold
+}
+
+export type MedalTier = 'bronze' | 'silver' | 'gold' | 'diamond' | 'mythic';
+export type AchievementCategory = 'protein' | 'calisthenics' | 'vitality';
+
+export interface AchievementBadgeData {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  category: AchievementCategory;
+  tier: MedalTier;
+  icon: string;
+  xpReward: number;
+  fuelLore: string;
+  isUnlocked: boolean;
+  progressPct: number;
+  currentValueText: string;
+  targetValueText: string;
+  unlockedAtDate?: string;
 }

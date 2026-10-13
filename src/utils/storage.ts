@@ -10,15 +10,22 @@ export const DEFAULT_USERS: UserProfile[] = [
     avatar: '🌱',
     themeColor: '#10B981', // emerald
     experienceLevel: 'intermediate',
+    heightCm: 178,
+    weightKg: 74,
+    gender: 'male',
+    age: 26,
+    activityLevel: 'very_active',
+    fitnessGoal: 'lean_muscle_gain',
+    autoSyncNutritionWithBiometrics: true,
     goals: {
-      calories: 2450,
-      protein: 135, // High protein lean muscle target
-      carbs: 290,
+      calories: 2550,
+      protein: 155, // 2.1g per kg bodyweight for lean muscle hypertrophy
+      carbs: 300,
       fat: 65,
       fiber: 45,
-      waterMl: 3000,
+      waterMl: 3200,
       sleepHours: 8.0,
-      weeklyWorkoutDays: 4,
+      weeklyWorkoutDays: 5,
     },
     createdAt: '2026-10-01T08:00:00.000Z',
   },
@@ -28,15 +35,22 @@ export const DEFAULT_USERS: UserProfile[] = [
     avatar: '🌿',
     themeColor: '#F59E0B', // citrus amber
     experienceLevel: 'beginner',
+    heightCm: 165,
+    weightKg: 58,
+    gender: 'female',
+    age: 24,
+    activityLevel: 'moderately_active',
+    fitnessGoal: 'vitality_maintenance',
+    autoSyncNutritionWithBiometrics: true,
     goals: {
       calories: 1950,
-      protein: 80,
+      protein: 95,
       carbs: 240,
-      fat: 55,
+      fat: 52,
       fiber: 35,
-      waterMl: 2200,
+      waterMl: 2400,
       sleepHours: 7.5,
-      weeklyWorkoutDays: 3,
+      weeklyWorkoutDays: 4,
     },
     createdAt: '2026-10-05T08:00:00.000Z',
   },
@@ -300,7 +314,21 @@ export function loadAppState(): AppState {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.users) && parsed.users.length > 0) {
-        return parsed;
+        // Ensure every user has biometric fields for dynamic calculations
+        const enrichedUsers = parsed.users.map((u: UserProfile) => ({
+          ...u,
+          heightCm: u.heightCm ?? (u.id === 'user-beginner' ? 165 : 178),
+          weightKg: u.weightKg ?? (u.id === 'user-beginner' ? 58 : 74),
+          gender: u.gender ?? (u.id === 'user-beginner' ? 'female' : 'male'),
+          age: u.age ?? (u.id === 'user-beginner' ? 24 : 26),
+          activityLevel: u.activityLevel ?? (u.id === 'user-beginner' ? 'moderately_active' : 'very_active'),
+          fitnessGoal: u.fitnessGoal ?? (u.id === 'user-beginner' ? 'vitality_maintenance' : 'lean_muscle_gain'),
+          autoSyncNutritionWithBiometrics: u.autoSyncNutritionWithBiometrics ?? true,
+        }));
+        return {
+          ...parsed,
+          users: enrichedUsers,
+        };
       }
     }
   } catch (err) {
