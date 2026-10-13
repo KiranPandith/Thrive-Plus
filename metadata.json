@@ -1,0 +1,6 @@
+{
+  "name": "Thrive Pulse — Vegan Nutrition & Calisthenics Tracker",
+  "description": "Privacy-first, on-device vegan nutrition tracker and calisthenics skill tree progression app with dynamic macro/micro insights and local multi-user profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
